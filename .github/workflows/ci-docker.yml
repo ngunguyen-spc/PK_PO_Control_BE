@@ -1,0 +1,50 @@
+name: Build and Deploy to Portainer
+
+on:
+  push:
+    branches:
+      - main  # hoặc nhánh bạn muốn chạy
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: yourdockerhubuser/yourimage:latest
+
+      - name: Deploy update to Portainer stack
+        env:
+          PORTAINER_URL: ${{ secrets.PORTAINER_URL }}
+          PORTAINER_API_KEY: ${{ secrets.PORTAINER_API_KEY }}
+          PORTAINER_STACK_ID: ${{ secrets.PORTAINER_STACK_ID }}
+          IMAGE_NAME: yourdockerhubuser/yourimage:latest
+        run: |
+          echo "Updating stack in Portainer..."
+          # Thực hiện gọi API Portainer để cập nhật stack với image mới
+          # Lấy stack hiện tại
+          STACK_JSON=$(curl -s -H "Authorization: Bearer $PORTAINER_API_KEY" "$PORTAINER_URL/stacks/$PORTAINER_STACK_ID")
+          # Cập nhật image trong stack (giả định dùng compose file)
+          UPDATED_STACK_JSON=$(echo "$STACK_JSON" | jq --arg IMAGE "$IMAGE_NAME" '(.Spec.StackFileContent | fromjson) as $compose | 
+            $compose.services.backend.image = $IMAGE | $compose.services.frontend.image = $IMAGE | tojson')
+          # Gửi update stack lại (Portainer API yêu cầu định dạng đặc biệt)
+          curl -X PUT "$PORTAINER_URL/stacks/$PORTAINER_STACK_ID" \
+            -H "Authorization: Bearer $PORTAINER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"StackFileContent\":$UPDATED_STACK_JSON}"
