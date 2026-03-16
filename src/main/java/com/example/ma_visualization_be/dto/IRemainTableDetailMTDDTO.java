@@ -2,6 +2,7 @@ package com.example.ma_visualization_be.dto;
 
 public interface IRemainTableDetailMTDDTO {
     String getSSD();
+    String getPickupTime();
     String getCusID();
     String getShipBy();
     String getDENK();

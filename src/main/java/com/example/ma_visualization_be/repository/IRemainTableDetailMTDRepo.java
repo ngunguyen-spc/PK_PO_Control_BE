@@ -121,6 +121,10 @@ public interface IRemainTableDetailMTDRepo extends JpaRepository<DummyEntity, Lo
             
             SELECT\s
             	check_fn.SSD1 as SSD,
+            	FORMAT(
+                  DATEADD(MINUTE, Hour1*60, DATEADD(DAY, Day1,CAST(SSD AS DATETIME))),
+                  'yyyy-MM-dd HH:mm'
+                ) as PickupTime,
                 check_fn.CusID,
                 check_fn.ShipBy,
             	check_fn.DENK,
