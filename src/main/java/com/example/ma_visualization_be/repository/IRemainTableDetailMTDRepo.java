@@ -26,7 +26,7 @@ public interface IRemainTableDetailMTDRepo extends JpaRepository<DummyEntity, Lo
                            ROW_NUMBER() OVER (PARTITION BY VBELN ORDER BY ID DESC) rn
                     FROM F2_PackingList
                     --WHERE SSD = @date
-            		WHERE SSD >= DATEADD(DAY, -7, @date)
+            		WHERE SSD BETWEEN DATEADD(DAY, -7, @date) AND @date
                     AND [check] = 'Fix'
                 ) t
                 WHERE rn = 1
@@ -105,10 +105,12 @@ public interface IRemainTableDetailMTDRepo extends JpaRepository<DummyEntity, Lo
             
                         ELSE LEFT(
                                 CASE
-                                    WHEN pd.PRODH LIKE 'FA%48%' OR pd.PRODH = 'MO   17'
+                                    WHEN pd.PRODH LIKE 'FA%48%' OR pd.PRODH = 'MO   17'\s
                                         THEN 'PR'
-                                    WHEN pd.PRODH LIKE 'FA%99%'
+                                    WHEN pd.PRODH LIKE 'FA%99%'\s
                                         THEN 'MO'
+            						WHEN pd.PRODH = 'MO   96'\s
+            							THEN 'PG'
                                     ELSE pd.PRODH
                                 END
                             ,2)
@@ -122,9 +124,9 @@ public interface IRemainTableDetailMTDRepo extends JpaRepository<DummyEntity, Lo
             SELECT\s
             	check_fn.SSD1 as SSD,
             	FORMAT(
-                  DATEADD(MINUTE, Hour1*60, DATEADD(DAY, Day1,CAST(SSD AS DATETIME))),
-                  'yyyy-MM-dd HH:mm'
-                ) as PickupTime,
+            		DATEADD(MINUTE, Hour1*60, DATEADD(DAY, Day1,CAST(SSD AS DATETIME))),
+            		'yyyy-MM-dd HH:mm'
+            	) as PickupTime,
                 check_fn.CusID,
                 check_fn.ShipBy,
             	check_fn.DENK,

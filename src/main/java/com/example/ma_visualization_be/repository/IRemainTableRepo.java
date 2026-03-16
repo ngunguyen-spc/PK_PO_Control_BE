@@ -103,8 +103,10 @@ public interface IRemainTableRepo extends JpaRepository<DummyEntity, Long> {
                                 CASE
                                     WHEN pd.PRODH LIKE 'FA%48%' OR pd.PRODH = 'MO   17'
                                         THEN 'PR'
-                                    WHEN pd.PRODH LIKE 'FA%99%'
+                                    WHEN pd.PRODH LIKE 'FA%99%' OR pd.PRODH = 'MO   96'\s
                                         THEN 'MO'
+            						WHEN pd.PRODH = 'MO   96'\s
+            							THEN 'PG'
                                     ELSE pd.PRODH
                                 END
                             ,2)

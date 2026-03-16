@@ -106,6 +106,8 @@ public interface IRemainPickupTimeRepo extends JpaRepository<DummyEntity, Long> 
                                         THEN 'PR'
                                     WHEN pd.PRODH LIKE 'FA%99%'
                                         THEN 'MO'
+            						WHEN pd.PRODH = 'MO   96'\s
+            							THEN 'PG'
                                     ELSE pd.PRODH
                                 END
                             ,2)
@@ -151,7 +153,7 @@ public interface IRemainPickupTimeRepo extends JpaRepository<DummyEntity, Long> 
             ORDER BY
             	IIF(COUNT(CASE WHEN check_fn.fn_status = 'NY' THEN check_fn.VBELN END)=0,'Done','NY') DESC,
             	DATEADD(MINUTE, Hour1*60, DATEADD(DAY, Day1,CAST(SSD AS DATETIME))),
-            	Remain_PO       
+            	Remain_PO
             
             	""", nativeQuery = true)
     List<IRemainPickupTimeDTO> getRemainPickupTime(@Param("div") String div, @Param("date") String date);

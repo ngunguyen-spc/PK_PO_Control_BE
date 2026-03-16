@@ -65,7 +65,8 @@ public interface IRemainChartRepo extends JpaRepository<DummyEntity, Long> {
             			IIF(pk_sum.sum_Qty>=exl_plan.Qty, 'OK','NY') as fn_status,
             			IIF((pd.FERTH LIKE '%Retainer%' or pd.FERTH LIKE '%Backing Plate%') AND pd.MAKTX Not Like '%BACKING PLUG%', 'PR-RET',
             				LEFT(IIF(pd.PRODH like 'FA%48%' or pd.PRODH = 'MO   17' ,'PR',
-            				IIF(pd.PRODH like 'FA%99%','MO',pd.PRODH)),2)) As Div,
+            				IIF(pd.PRODH like 'FA%99%' ,'MO',
+            				IIF(pd.PRODH = 'MO   96','PG',pd.PRODH))),2)) As Div,
             			exl_plan.CusID, exl_plan.ShipBy
             		FROM exl_plan
             		INNER JOIN MANUFASPCPD.dbo.MANUFA_F_PD_GRB_PRODUCT pd ON exl_plan.PHTX = pd.MAKTX
@@ -87,6 +88,7 @@ public interface IRemainChartRepo extends JpaRepository<DummyEntity, Long> {
             AND DATEADD(MINUTE, Hour1*60, DATEADD(DAY, Day1,CAST(SSD AS DATETIME))) >= @date
             GROUP BY SSD
             ORDER BY SSD
+            
             
             	""", nativeQuery = true)
     List<IRemainChartDTO> getRemainChart(@Param("div") String div, @Param("date") String date);
