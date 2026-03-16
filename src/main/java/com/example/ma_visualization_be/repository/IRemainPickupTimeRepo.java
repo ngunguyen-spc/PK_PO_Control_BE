@@ -23,7 +23,7 @@ public interface IRemainPickupTimeRepo extends JpaRepository<DummyEntity, Long> 
                     SELECT *,
                            ROW_NUMBER() OVER (PARTITION BY VBELN ORDER BY ID DESC) rn
                     FROM F2_PackingList
-                    WHERE SSD = @date
+                    WHERE SSD BETWEEN DATEADD(DAY, -7, @date) AND @date
                     AND [check] = 'Fix'
                 ) t
                 WHERE rn = 1
@@ -125,17 +125,11 @@ public interface IRemainPickupTimeRepo extends JpaRepository<DummyEntity, Long> 
                 check_fn.CusID,
                 check_fn.ShipBy,
                 COUNT(check_fn.VBELN) AS Ex_PO,
-                --SUM(check_fn.qty) AS Ex_Qty,
                 COUNT(CASE WHEN check_fn.fn_status = 'OK' THEN check_fn.VBELN END) AS Fn_PO,
-                --SUM(check_fn.sum_Qty) AS Fn_Qty,
                 COUNT(CASE WHEN check_fn.fn_status = 'NY' THEN check_fn.VBELN END) AS Remain_PO,
             	IIF(COUNT(CASE WHEN check_fn.fn_status = 'NY' THEN check_fn.VBELN END)=0,'Done','NY') as fn_status,
-             --   CASE\s
-             --   WHEN SUM(check_fn.qty) - SUM(check_fn.sum_Qty) < 0\s
-             --   THEN 0
-             --   ELSE SUM(check_fn.qty) - SUM(check_fn.sum_Qty)
-            	--END AS Remain_Qty,
-            	DATEADD(HOUR,Hour1,DATEADD(DAY, Day1,CAST(SSD AS DATETIME))) as Pickup_Time
+            	check_fn.SSD,
+            	DATEADD(MINUTE, Hour1*60, DATEADD(DAY, Day1,CAST(SSD AS DATETIME))) as Pickup_Time
             
             FROM check_fn
             LEFT JOIN F2_Cus_Grp cus ON check_fn.CusID = cus.CusID
@@ -148,13 +142,16 @@ public interface IRemainPickupTimeRepo extends JpaRepository<DummyEntity, Long> 
                 OR (@div = 'GUIDE' AND check_fn.div LIKE '%G')
                 OR (@div = 'MOLD'  AND check_fn.div LIKE 'MO')
             )
+            AND DATEADD(MINUTE, Hour1*60, DATEADD(DAY, Day1,CAST(SSD AS DATETIME))) >= @date
             
-            GROUP BY cus.CusGrp, check_fn.CusID, check_fn.ShipBy, DATEADD(HOUR,Hour1,DATEADD(DAY, Day1,CAST(SSD AS DATETIME)))
+            GROUP BY cus.CusGrp, check_fn.CusID, check_fn.ShipBy,
+            	check_fn.SSD,
+            	DATEADD(MINUTE, Hour1*60, DATEADD(DAY, Day1,CAST(SSD AS DATETIME)))
             
             ORDER BY
             	IIF(COUNT(CASE WHEN check_fn.fn_status = 'NY' THEN check_fn.VBELN END)=0,'Done','NY') DESC,
-            	DATEADD(HOUR,Hour1,DATEADD(DAY, Day1,CAST(SSD AS DATETIME))),
-            	Remain_PO
+            	DATEADD(MINUTE, Hour1*60, DATEADD(DAY, Day1,CAST(SSD AS DATETIME))),
+            	Remain_PO       
             
             	""", nativeQuery = true)
     List<IRemainPickupTimeDTO> getRemainPickupTime(@Param("div") String div, @Param("date") String date);

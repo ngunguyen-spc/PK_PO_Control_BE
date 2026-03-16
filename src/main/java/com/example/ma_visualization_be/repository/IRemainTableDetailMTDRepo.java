@@ -1,7 +1,7 @@
 package com.example.ma_visualization_be.repository;
 
-import com.example.ma_visualization_be.dto.IRemainTableDTO;
-import com.example.ma_visualization_be.dto.IRepairFeeDTO;
+import com.example.ma_visualization_be.dto.IRemainTableDetailDTO;
+import com.example.ma_visualization_be.dto.IRemainTableDetailMTDDTO;
 import com.example.ma_visualization_be.model.DummyEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -11,10 +11,13 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface IRemainTableRepo extends JpaRepository<DummyEntity, Long> {
+public interface IRemainTableDetailMTDRepo extends JpaRepository<DummyEntity, Long> {
     @Query(value = """
             DECLARE @date DATE = :date;
             DECLARE @div NVARCHAR(10) = :div;
+            DECLARE @cusID NVARCHAR(20) = :cusID;
+            DECLARE @shipBy NVARCHAR(10) = :shipBy;
+            
             WITH exl AS
             (
                 SELECT *
@@ -22,7 +25,8 @@ public interface IRemainTableRepo extends JpaRepository<DummyEntity, Long> {
                     SELECT *,
                            ROW_NUMBER() OVER (PARTITION BY VBELN ORDER BY ID DESC) rn
                     FROM F2_PackingList
-            		WHERE SSD BETWEEN DATEADD(DAY, -7, @date) AND @date
+                    --WHERE SSD = @date
+            		WHERE SSD >= DATEADD(DAY, -7, @date)
                     AND [check] = 'Fix'
                 ) t
                 WHERE rn = 1
@@ -52,6 +56,8 @@ public interface IRemainTableRepo extends JpaRepository<DummyEntity, Long> {
                     dtl.RRONYU1 AS CusID,
                     dtl.ABGRU,
                     dtl.PHTX,
+            		dtl.RONAME,
+            		IIF(dtl.RODENK LIKE '1%', 'MTO', 'MTS') AS DENK,
                     CASE wo.TRANSPORT
                         WHEN 'OCEAN' THEN 'SEA'
                         WHEN 'Express' THEN 'EXP'
@@ -81,12 +87,10 @@ public interface IRemainTableRepo extends JpaRepository<DummyEntity, Long> {
             check_fn AS
             (
                 SELECT\s
-                    CONVERT(date, CAST(exl_sum.EDATU AS nvarchar(10)),112) AS SSD,
-                    exl_sum.VBELN,
-                    exl_sum.Qty,
+                    CONVERT(date, CAST(exl_sum.EDATU AS nvarchar(10)),112) AS SSD1,
                     pk_sum.sum_Qty,
-                    exl_sum.ShipBy,
-                    exl_sum.CusID,
+                    exl_sum.*,
+            		pd.FERTH,
             
                     CASE\s
                         WHEN pk_sum.sum_Qty >= exl_sum.Qty THEN 'OK'
@@ -111,37 +115,28 @@ public interface IRemainTableRepo extends JpaRepository<DummyEntity, Long> {
                     END AS Div
             
                 FROM exl_sum
-            
-                INNER JOIN MANUFASPCPD.dbo.MANUFA_F_PD_GRB_PRODUCT pd
-                    ON exl_sum.PHTX = pd.MAKTX
-            
-                LEFT JOIN pk_sum
-                    ON exl_sum.VBELN = pk_sum.VBELN
+                INNER JOIN MANUFASPCPD.dbo.MANUFA_F_PD_GRB_PRODUCT pd ON exl_sum.PHTX = pd.MAKTX
+                LEFT JOIN pk_sum ON exl_sum.VBELN = pk_sum.VBELN
             )
             
-            --SELECT * FROM check_fn
-            
             SELECT\s
-                cus.CusGrp,
+            	check_fn.SSD1 as SSD,
                 check_fn.CusID,
                 check_fn.ShipBy,
-                COUNT(check_fn.VBELN) AS Ex_PO,
-                SUM(check_fn.qty) AS Ex_Qty,
-            
-                COUNT(CASE WHEN check_fn.fn_status = 'OK' THEN check_fn.VBELN END) AS Fn_PO,
-                SUM(check_fn.sum_Qty) AS Fn_Qty,
-            
-                COUNT(CASE WHEN check_fn.fn_status = 'NY' THEN check_fn.VBELN END) AS Remain_PO,
+            	check_fn.DENK,
+            	check_fn.VBELN,
+            	check_fn.PO,	
+            	check_fn.Div,
+            	check_fn.FERTH,
+            	check_fn.RONAME,
+                check_fn.qty AS Ex_Qty,
+                check_fn.sum_Qty AS Fn_Qty,
                 CASE\s
-                WHEN SUM(check_fn.qty) - SUM(check_fn.sum_Qty) < 0\s
-                THEN 0
-                ELSE SUM(check_fn.qty) - SUM(check_fn.sum_Qty)
+                WHEN check_fn.qty - COALESCE(check_fn.sum_Qty,0) < 0 THEN 0
+                ELSE check_fn.qty - COALESCE(check_fn.sum_Qty,0)
             	END AS Remain_Qty
             FROM check_fn
-            
-            LEFT JOIN F2_Cus_Grp cus ON check_fn.CusID = cus.CusID
             LEFT JOIN pickup ON check_fn.CusID = pickup.CusID AND check_fn.ShipBy = pickup.ShipBy
-            
             WHERE
             (
                 @div = 'KVH'
@@ -149,21 +144,15 @@ public interface IRemainTableRepo extends JpaRepository<DummyEntity, Long> {
                 OR (@div = 'GUIDE' AND check_fn.div LIKE '%G')
                 OR (@div = 'MOLD'  AND check_fn.div LIKE 'MO')
             )
+            AND (@cusID = 'All' OR check_fn.CusID = @cusID)
+            AND (@shipBy = 'All' OR check_fn.ShipBy = @shipBy)
             AND DATEADD(MINUTE, Hour1*60, DATEADD(DAY, Day1,CAST(SSD AS DATETIME))) >= @date
             
-            GROUP BY cus.CusGrp, check_fn.CusID, check_fn.ShipBy
-            
-            ORDER BY
-                CASE CusGrp
-                    WHEN 'SRG' THEN 1
-                    WHEN 'DL'  THEN 2
-                    WHEN 'MSM' THEN 3
-                    ELSE 4
-                END,
-                Remain_Qty DESC;
-                                                    
+            ORDER BY Remain_Qty DESC, CusID, ShipBy
             	""", nativeQuery = true)
-    List<IRemainTableDTO> getRemainTable(@Param("div") String div, @Param("date") String date);
-
+    List<IRemainTableDetailMTDDTO> getRemainTableDetailMTD(@Param("div") String div,
+                                                           @Param("date") String date,
+                                                           @Param("cusID") String cusID,
+                                                           @Param("shipBy") String shipBy);
 
 }
