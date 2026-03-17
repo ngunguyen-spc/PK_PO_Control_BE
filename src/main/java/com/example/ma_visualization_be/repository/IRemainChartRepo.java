@@ -93,5 +93,4 @@ public interface IRemainChartRepo extends JpaRepository<DummyEntity, Long> {
             	""", nativeQuery = true)
     List<IRemainChartDTO> getRemainChart(@Param("div") String div, @Param("date") String date);
 
-
 }
