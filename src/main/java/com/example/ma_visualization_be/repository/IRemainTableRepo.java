@@ -135,9 +135,9 @@ public interface IRemainTableRepo extends JpaRepository<DummyEntity, Long> {
             
                 COUNT(CASE WHEN check_fn.fn_status = 'NY' THEN check_fn.VBELN END) AS Remain_PO,
                 CASE\s
-                WHEN SUM(check_fn.qty) - SUM(check_fn.sum_Qty) < 0\s
+                WHEN SUM(check_fn.qty) - SUM(COALESCE(check_fn.sum_Qty,0)) < 0\s
                 THEN 0
-                ELSE SUM(check_fn.qty) - SUM(check_fn.sum_Qty)
+                ELSE SUM(check_fn.qty) - SUM(COALESCE(check_fn.sum_Qty,0))
             	END AS Remain_Qty
             FROM check_fn
             
