@@ -70,6 +70,7 @@ public interface IRemainPickupTimeRepo extends JpaRepository<DummyEntity, Long> 
                 FROM QC_KAOshakaData_BK07 rec
                 INNER JOIN MANUFASPCPD.dbo.MANUFA_F_PD_DT_REQ_HED hed ON rec.OrderNo = hed.AUFNR
                 INNER JOIN exl ON hed.KDAUF = exl.VBELN
+                WHERE rec.RequestD >= GETDATE()-365
                 GROUP BY hed.KDAUF
             	),
             
