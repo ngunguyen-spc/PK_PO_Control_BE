@@ -16,11 +16,19 @@ public interface IRemainChartRepo extends JpaRepository<DummyEntity, Long> {
             DECLARE @div NVARCHAR(10) = :div;
             
             WITh\s
-            	exl AS (SELECT *,
-            		ROW_NUMBER() OVER (PARTITION BY VBELN ORDER BY ID Desc) as rn
-            		FROM F2_PackingList
-            		WHERE [check] = 'Fix'
-            		AND SSD >= GETDATE()-7),
+            	exl AS
+                                     (
+                                         SELECT *
+                                         FROM (
+                                             SELECT *,
+                                                    ROW_NUMBER() OVER (PARTITION BY VBELN ORDER BY ID DESC) rn
+                                             FROM F2_PackingList
+                                     		WHERE SSD BETWEEN DATEADD(DAY, -7, @date) AND @date
+                                            \s
+                                         ) t
+                                         WHERE rn = 1
+                                     	AND [check] = 'Fix'
+                                     ),
             	wo AS
             	(
             		SELECT *

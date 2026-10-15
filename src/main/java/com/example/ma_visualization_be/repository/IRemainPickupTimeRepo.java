@@ -17,17 +17,18 @@ public interface IRemainPickupTimeRepo extends JpaRepository<DummyEntity, Long> 
             DECLARE @div NVARCHAR(10) = :div;
             
             WITH exl AS
-            (
-                SELECT *
-                FROM (
-                    SELECT *,
-                           ROW_NUMBER() OVER (PARTITION BY VBELN ORDER BY ID DESC) rn
-                    FROM F2_PackingList
-                    WHERE SSD BETWEEN DATEADD(DAY, -7, @date) AND @date
-                    AND [check] = 'Fix'
-                ) t
-                WHERE rn = 1
-            ),
+             (
+                 SELECT *
+                 FROM (
+                     SELECT *,
+                            ROW_NUMBER() OVER (PARTITION BY VBELN ORDER BY ID DESC) rn
+                     FROM F2_PackingList
+             		WHERE SSD BETWEEN DATEADD(DAY, -7, @date) AND @date
+                    \s
+                 ) t
+                 WHERE rn = 1
+             	AND [check] = 'Fix'
+             ),
             
             wo AS
             (
